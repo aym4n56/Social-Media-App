@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <style>
+        #map {
+            height: 60vh;
+            width: 100%;
+        }
+        #tipForm {
+            display: none;
+            position: absolute;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid black;
+            z-index: 1000;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+    <h1>Welcome to PinTip</h1>
+    <p>You are logged in as: {{ user_email }}</p>
+    <div class="navbar">
+        <a href="#home" class="active">Home</a>
+        <a href="#Friends">Friends</a>
+        <a href="#Feed">Feed</a>
+    </div>
+    <p><a href="/">Sign out</a></p>
+
+    <!-- Input for postcode -->
+    <div>
+        <input type="text" id="postcode" placeholder="Enter postcode" />
+        <button onclick="geocodePostcode()">Find Location</button>
+    </div>
+
+    <!-- Map container -->
+    <div id="map"></div>
+
+    <!-- Form to add a new tip -->
+    <div id="tipForm">
+        <label for="tip">Enter your tip:</label><br>
+        <input type="text" id="tip" name="tip" required><br>
+        <button onclick="submitTip()">Add Tip</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map and set a default view
+        var map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Add a tile layer to the map
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Fetch and display existing pins
+        fetch('/api/pins')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(pin => {
+                    L.marker([pin.lat, pin.lon])
+                        .addTo(map)
+                        .bindPopup(`<strong>${pin.tip}</strong><br>by ${pin.email}`);
+                });
+            })
+            .catch(error => console.error('Error fetching pins:', error));
+
+
+        // Function to geocode the postcode and adjust map view
+        function geocodePostcode() {
+            var postcode = document.getElementById('postcode').value;
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${postcode}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        var lat = data[0].lat;
+                        var lon = data[0].lon;
+
+                        // Update map view to the new coordinates
+                        map.setView([lat, lon], 13);  // Adjust zoom level as needed
+                    } else {
+                        alert('No location found for this postcode.');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Event listener to add a new tip
+        var lat, lon;
+        map.on('click', function(e) {
+            lat = e.latlng.lat;
+            lon = e.latlng.lng;
+
+            // Show the tip form at the clicked position
+            var tipForm = document.getElementById('tipForm');
+            tipForm.style.display = 'block';
+            tipForm.style.left = e.originalEvent.pageX + 'px';
+            tipForm.style.top = e.originalEvent.pageY + 'px';
+        });
+
+        function submitTip() {
+            var tip = document.getElementById('tip').value;
+
+            fetch('/api/add_pin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ lat: lat, lon: lon, tip: tip })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add the new pin to the map
+                    L.marker([lat, lon])
+                        .addTo(map)
+                        .bindPopup(`<strong>${tip}</strong><br>by {{ user_email }}`);
+                    
+                    // Hide the form
+                    document.getElementById('tipForm').style.display = 'none';
+                } else {
+                    alert('Failed to add tip.');
+                }
+            })
+            .catch(error => console.error('Error adding tip:', error));
+        }
+    </script>
+</body>
+</html>
