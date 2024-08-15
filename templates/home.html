@@ -22,12 +22,15 @@
 </head>
 <body>
     <h1>Welcome to PinTip</h1>
-    <p>You are logged in as: {{ user_email }}</p>
+    
     <div class="navbar">
-        <a href="#home" class="active">Home</a>
-        <a href="#Friends">Friends</a>
+        <a href="/home" class="active">Home</a>
+        <a href="/friends">Friends</a>
         <a href="#Feed">Feed</a>
     </div>
+    
+    <p>You are logged in as: {{ user_email }}</p>
+
     <p><a href="/">Sign out</a></p>
 
     <!-- Input for postcode -->
