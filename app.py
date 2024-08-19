@@ -7,7 +7,7 @@ app.secret_key = 'ayman123'  # Change this to a random secret key
 # Connect to MySQL Database
 def db_connection():
     return mysql.connector.connect(
-        host="localhost",  # Change if connecting to a remote MySQL container
+        host="localhost",
         user="root",
         password="ayman123",
         database="pintip",
@@ -46,8 +46,26 @@ def home():
     if 'email' not in session:
         return redirect(url_for('login'))  # Redirect to login if not authenticated
     
+    # Get the email from the session
     email = session['email']
-    return render_template('home.html', user_email=email)
+
+    # Connect to the database and fetch the user's name
+    conn = db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT name FROM logins WHERE email = %s', (email,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    # Check if the user was found and extract their name
+    if user:
+        user_name = user['name']
+    else:
+        user_name = 'User'
+
+    # Render the home page template with the user's name
+    return render_template('home.html', user_name=user_name)
+
 
 @app.route('/signup', methods=['GET','POST'])
 def signup():
@@ -80,11 +98,26 @@ def get_pins():
     if 'email' not in session:
         return jsonify([])  # Return an empty list if the user is not authenticated
 
-    email = session['email']
+    current_user_email = session['email']
 
     conn = db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('SELECT lat, lon, tip, email FROM tips WHERE email = %s', (email,))
+    
+    cursor.execute("""
+        SELECT tips.lat, tips.lon, tips.tip, tips.email 
+        FROM tips
+        WHERE tips.email = %s 
+        OR tips.email IN (
+            SELECT 
+                CASE
+                    WHEN email1 = %s THEN email2
+                    ELSE email1
+                END
+            FROM friend_list
+            WHERE email1 = %s OR email2 = %s
+        )
+    """, (current_user_email, current_user_email, current_user_email, current_user_email))
+
     pins = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -94,7 +127,7 @@ def get_pins():
 @app.route('/api/add_pin', methods=['POST'])
 def add_pin():
     if 'email' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401  # Unauthorized
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
     data = request.json
     lat = data.get('lat')
@@ -102,11 +135,15 @@ def add_pin():
     tip = data.get('tip')
     email = session['email']
 
+    if not (lat and lon and tip):
+        return jsonify({'success': False, 'message': 'Invalid data'}), 400
+
     conn = db_connection()
     cursor = conn.cursor()
+
     try:
-        cursor.execute('INSERT INTO tips (email, lat, lon, tip) VALUES (%s, %s, %s, %s)', 
-                       (email, lat, lon, tip))
+        cursor.execute('INSERT INTO tips (lat, lon, tip, email) VALUES (%s, %s, %s, %s)', 
+                       (lat, lon, tip, email))
         conn.commit()
         return jsonify({'success': True})
     except mysql.connector.Error as err:
@@ -126,7 +163,7 @@ def friends():
     conn = db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Query to find friends where current user's email is either email1 or email2
+    # Get list of friend emails
     cursor.execute("""
         SELECT 
             CASE
@@ -137,11 +174,20 @@ def friends():
         WHERE email1 = %s OR email2 = %s
     """, (current_user_email, current_user_email, current_user_email))
     
-    friends = cursor.fetchall()
+    friend_emails = cursor.fetchall()
+    emails = [email['friend_email'] for email in friend_emails]
+
+    friends = []
+    if emails:
+        # Fetch names of friends based on their emails
+        cursor.execute('SELECT email, name FROM logins WHERE email IN (%s)' % ','.join(['%s']*len(emails)), tuple(emails))
+        friends = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
     return render_template('friends.html', friends=friends)
+
 
 @app.route('/search_friends', methods=['POST'])
 def search_friends():
@@ -195,7 +241,7 @@ def search_suggestions():
 @app.route('/add_friend', methods=['POST'])
 def add_friend():
     if 'email' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401  # Unauthorized
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
     friend_email = request.form.get('friend_email')
     current_user_email = session['email']
@@ -243,5 +289,37 @@ def remove_friend():
         cursor.close()
         conn.close()
 
+@app.route('/feed', methods=['GET'])
+def feed():
+    if 'email' not in session:
+        return redirect(url_for('login'))  # Redirect to login if not authenticated
+    
+    current_user_email = session['email']
+
+    conn = db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Query to get pins from friends
+    cursor.execute("""
+        SELECT tips.lat, tips.lon, tips.tip, tips.email 
+        FROM tips
+        WHERE tips.email IN (
+            SELECT 
+                CASE
+                    WHEN email1 = %s THEN email2
+                    ELSE email1
+                END
+            FROM friend_list
+            WHERE email1 = %s OR email2 = %s
+        )
+    """, (current_user_email, current_user_email, current_user_email))
+    
+    pins = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # Render feed without city names
+    return render_template('feed.html', pins=pins)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

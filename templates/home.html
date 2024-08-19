@@ -21,15 +21,15 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
-    <h1>Welcome to PinTip</h1>
+    <h1>Welcome,  {{ user_name }}</h1>
     
     <div class="navbar">
         <a href="/home" class="active">Home</a>
         <a href="/friends">Friends</a>
-        <a href="#Feed">Feed</a>
+        <a href="/feed">Feed</a>
+        <a href="/profile">Profile</a>
     </div>
     
-    <p>You are logged in as: {{ user_email }}</p>
 
     <p><a href="/">Sign out</a></p>
 
@@ -64,13 +64,26 @@
             .then(response => response.json())
             .then(data => {
                 data.forEach(pin => {
-                    L.marker([pin.lat, pin.lon])
+                    // Determine if the pin belongs to the current user or a friend
+                    var isCurrentUserPin = pin.email === '{{ user_name }}';
+
+                    // Set the marker color: blue for current user, green for friends
+                    var markerColor = isCurrentUserPin ? 'blue' : 'green';
+
+                    // Use Leaflet's colored markers from a third-party library or custom icons
+                    var customIcon = L.icon({
+                        iconUrl: `http://maps.google.com/mapfiles/ms/icons/${markerColor}-dot.png`,
+                        iconSize: [32, 32], // size of the icon
+                        iconAnchor: [16, 32], // point of the icon which will correspond to marker's location
+                        popupAnchor: [0, -32] // point from which the popup should open relative to the iconAnchor
+                    });
+
+                    L.marker([pin.lat, pin.lon], { icon: customIcon })
                         .addTo(map)
                         .bindPopup(`<strong>${pin.tip}</strong><br>by ${pin.email}`);
                 });
             })
             .catch(error => console.error('Error fetching pins:', error));
-
 
         // Function to geocode the postcode and adjust map view
         function geocodePostcode() {
@@ -120,7 +133,7 @@
                     // Add the new pin to the map
                     L.marker([lat, lon])
                         .addTo(map)
-                        .bindPopup(`<strong>${tip}</strong><br>by {{ user_email }}`);
+                        .bindPopup(`<strong>${tip}</strong><br>by {{ user_name }}`);
                     
                     // Hide the form
                     document.getElementById('tipForm').style.display = 'none';
@@ -129,6 +142,23 @@
                 }
             })
             .catch(error => console.error('Error adding tip:', error));
+        }
+
+        // Check for query parameters to center the map
+        function getQueryParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                lat: urlParams.get('lat'),
+                lon: urlParams.get('lon')
+            };
+        }
+
+        const params = getQueryParams();
+        if (params.lat && params.lon) {
+            map.setView([params.lat, params.lon], 13);
+            L.marker([params.lat, params.lon])
+                .addTo(map)
+                .bindPopup('Selected Location');
         }
     </script>
 </body>

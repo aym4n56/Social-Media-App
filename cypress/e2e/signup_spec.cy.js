@@ -1,7 +1,7 @@
 describe('Signup and Login Flow', () => {
     it('allows a user to sign up and redirects to the login page', () => {
       // Visit the signup page
-      cy.visit('http://127.0.0.1:5000')
+      cy.visit('http://127.0.0.1:5001')
   
       // Fill out the signup form
       cy.get('#name').type('Test User')

@@ -1,7 +1,7 @@
 describe('Login and Route to pages', () => {
     it('allows a user to log in and redirects to the home page', () => {
       // Visit the login page
-      cy.visit('http://127.0.0.1:5000/login')
+      cy.visit('http://127.0.0.1:5001/login')
   
       // Fill out the login form
       cy.get('#email').type('testuser@example.com')
@@ -24,6 +24,11 @@ describe('Login and Route to pages', () => {
 
       // Check that the Friends page loads by verifying the presence of a specific element
       cy.contains('Friends Page');
+
+      cy.get('.navbar a').contains('Feed').click();
+      cy.url().should('include', '/feed');
+
+      
     })
   })
   

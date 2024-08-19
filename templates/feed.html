@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Feed</title>
+    <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
+    <style>
+        .feed-container {
+            max-width: 800px;
+            margin: 20px auto;
+            height: 80vh;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+            padding: 16px;
+            margin-bottom: 10px;
+            transition: 0.3s;
+            cursor: pointer; /* Change cursor to pointer on hover */
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .card h4 {
+            margin: 0 0 10px;
+        }
+
+        .card p {
+            margin: 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Friends' Tips</h1>
+    
+    <div class="navbar">
+        <a href="/home">Home</a>
+        <a href="/friends">Friends</a>
+        <a href="/feed" class="active">Feed</a>
+        <a href="/profile">Profile</a>
+    </div>
+    
+    <div class="feed-container">
+        {% for pin in pins %}
+            <div class="card" onclick="window.location.href='/home?lat={{ pin.lat }}&lon={{ pin.lon }}'">
+                <h4>{{ pin.email }}</h4>
+                <p><strong>Tip:</strong> {{ pin.tip }}</p>
+                <p><strong>Latitude:</strong> {{ pin.lat }}</p>
+                <p><strong>Longitude:</strong> {{ pin.lon }}</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <p style="text-align: center;"><a href="/">Sign out</a></p>
+</body>
+</html>
