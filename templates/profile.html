@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+    <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px auto;
+            max-width: 800px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .profile-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            margin-bottom: 15px;
+            background-color: #ddd; /* Placeholder color */
+            cursor: pointer; /* Indicate that the profile picture is clickable */
+        }
+        .user-details {
+            margin-bottom: 20px;
+        }
+        .user-details h2 {
+            margin: 0;
+            font-size: 28px;
+            color: #333;
+        }
+        .tips-list, .friends-list {
+            width: 100%;
+            max-height: 300px; /* Adjust the height as needed */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        .tips-list h2, .friends-list h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .tip-card, .friend-card {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            position: relative; /* For positioning the X button */
+        }
+        .tip-card p, .friend-info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .tip-card h4, .friend-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .friend-card {
+            display: flex;
+            align-items: center;
+        }
+        .friend-pic {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 15px;
+        }
+        .friend-info {
+            flex-grow: 1;
+        }
+        .remove-tip, .remove-friend {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            color: #333;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .navbar a.active {
+            font-weight: bold;
+        }
+        .location-info {
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Your Profile</h1>
+
+    <div class="navbar">
+        <a href="/home">Home</a>
+        <a href="/friends">Friends</a>
+        <a href="/feed">Feed</a>
+        <a href="/profile" class="active">Profile</a>
+    </div>
+
+    <div class="container">
+        <div class="profile-header">
+            <input type="file" id="profile-pic-input" style="display: none;" accept="image/*" />
+            <img src="{{ user.profile_pic if user.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Profile Picture" class="profile-pic" id="profile-pic">
+            <div class="user-details">
+                <h2>{{ user.name }}</h2>
+            </div>
+        </div>
+
+        <div class="tips-list">
+            <h2>Your Tips</h2>
+            {% for tip in tips %}
+            <div class="tip-card" id="tip-{{ tip.lat }}-{{ tip.lon }}" data-lat="{{ tip.lat }}" data-lon="{{ tip.lon }}">
+                <button class="remove-tip" onclick="removeTip('{{ tip.lat }}', '{{ tip.lon }}', '{{ tip.tip|e }}')">X</button>
+                <p>{{ tip.tip }}</p>
+                <p class="location-info">Loading location...</p>
+            </div>            
+            {% endfor %}
+        </div>
+        
+        <div class="friends-list">
+            <h2>Your Friends</h2>
+            {% if friends %}
+            {% for friend in friends %}
+            <div class="friend-card">
+                <button class="remove-friend" onclick="removeFriend('{{ friend.email }}')">X</button>
+                <img src="{{ friend.profile_pic if friend.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Friend Picture" class="friend-pic">
+                <div class="friend-info">
+                    <h4>{{ friend.name }}</h4>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p>No friends added yet.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('profile-pic').addEventListener('click', function() {
+            document.getElementById('profile-pic-input').click();
+        });
+
+        document.getElementById('profile-pic-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+
+                    // Update the profile picture in the DOM
+                    document.getElementById('profile-pic').src = dataUrl;
+
+                    // Send the data URL to the server to save it
+                    fetch('/api/update_profile_pic', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ profile_pic: dataUrl })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert('Failed to update profile picture: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while updating the profile picture.');
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function removeTip(lat, lon, tip) {
+            if (confirm("Are you sure you want to remove this tip?")) {
+                fetch('/api/remove_tip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lat: lat, lon: lon, tip: tip })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`tip-${lat}-${lon}`).remove();
+                    } else {
+                        alert('Failed to remove tip: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while trying to remove the tip.');
+                });
+            }
+        }
+
+        function removeFriend(email) {
+            if (confirm("Are you sure you want to remove this friend?")) {
+                fetch('/remove_friend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'friend_email': email
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the friend card from the DOM
+                        document.querySelector(`.friend-card img[src$="${email}"]`).parentElement.remove();
+                    } else {
+                        alert('Failed to remove friend: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while trying to remove the friend.');
+                });
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const cards = document.querySelectorAll('.tip-card');
+
+            cards.forEach(card => {
+                const lat = card.getAttribute('data-lat');
+                const lon = card.getAttribute('data-lon');
+                const locationInfo = card.querySelector('.location-info');
+
+                if (lat && lon && locationInfo) {
+                    reverseGeocode(lat, lon, locationInfo);
+                }
+            });
+        });
+
+        function reverseGeocode(lat, lon, element) {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.address) {
+                        const address = [
+                            data.address.road || '',
+                            data.address.suburb || '',
+                            data.address.city || '',
+                            data.address.state || '',
+                            data.address.country || ''
+                        ].filter(Boolean).join(', ');
+
+                        element.innerText = `Location: ${address}`;
+                    } else {
+                        element.innerText = `Location: Latitude ${lat}, Longitude ${lon}`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Geocoding failed:", error);
+                    element.innerText = `Location: Latitude ${lat}, Longitude ${lon}`;
+                });
+        }
+    </script>
+</body>
+</html>

@@ -66,7 +66,6 @@ def home():
     # Render the home page template with the user's name
     return render_template('home.html', user_name=user_name)
 
-
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     if request.method == 'POST':
@@ -153,90 +152,58 @@ def add_pin():
         cursor.close()
         conn.close()
 
-@app.route('/friends', methods=['GET'])
+@app.route('/friends', methods=['GET', 'POST'])
 def friends():
     if 'email' not in session:
         return redirect('/login')  # Redirect to login if not authenticated
 
     current_user_email = session['email']
 
-    conn = db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    # Get list of friend emails
-    cursor.execute("""
-        SELECT 
-            CASE
-                WHEN email1 = %s THEN email2
-                ELSE email1
-            END AS friend_email
-        FROM friend_list
-        WHERE email1 = %s OR email2 = %s
-    """, (current_user_email, current_user_email, current_user_email))
-    
-    friend_emails = cursor.fetchall()
-    emails = [email['friend_email'] for email in friend_emails]
+    if request.method == 'POST':
+        search_email = request.form.get('search_email')
 
-    friends = []
-    if emails:
-        # Fetch names of friends based on their emails
-        cursor.execute('SELECT email, name FROM logins WHERE email IN (%s)' % ','.join(['%s']*len(emails)), tuple(emails))
-        friends = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    return render_template('friends.html', friends=friends)
-
-
-@app.route('/search_friends', methods=['POST'])
-def search_friends():
-    search_email = request.form.get('search_email')
-    current_user_email = session['email']
-
-    conn = db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        query = '''
-            SELECT email 
-            FROM logins 
-            WHERE email LIKE %s AND email != %s
-        '''
-        cursor.execute(query, ('%' + search_email + '%', current_user_email))
-        results = cursor.fetchall()
-
-        # Generate HTML for search results
-        html = ''
-        for result in results:
-            email = result['email']
-            html += f'''
-                <div class="card">
-                    <h4>{email}</h4>
-                    <button class="add-friend" data-email="{email}">Add Friend</button>
-                </div>
+        conn = db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            query = '''
+                SELECT email 
+                FROM logins 
+                WHERE email LIKE %s AND email != %s
             '''
-    except mysql.connector.Error as err:
-        html = '<p>Error retrieving search results.</p>'
-    finally:
-        cursor.close()
-        conn.close()
+            cursor.execute(query, ('%' + search_email + '%', current_user_email))
+            results = cursor.fetchall()
 
-    return html
+            # Check which results are already friends
+            friend_query = '''
+                SELECT email1, email2
+                FROM friend_list
+                WHERE (email1 = %s AND email2 IN (%s)) 
+                   OR (email2 = %s AND email1 IN (%s))
+            '''
+            cursor.execute(friend_query, (current_user_email, ','.join(r['email'] for r in results), current_user_email, ','.join(r['email'] for r in results)))
+            friends = set(email for row in cursor.fetchall() for email in row.values())
+            
+            # Generate HTML for search results
+            html = ''
+            for result in results:
+                email = result['email']
+                button_text = 'Added' if email in friends else 'Add Friend'
+                html += f'''
+                    <div class="card">
+                        <h4>{email}</h4>
+                        <button class="add-friend" data-email="{email}">{button_text}</button>
+                    </div>
+                '''
+        except mysql.connector.Error as err:
+            html = '<p>Error retrieving search results.</p>'
+        finally:
+            cursor.close()
+            conn.close()
 
-@app.route('/search_suggestions', methods=['GET'])
-def search_suggestions():
-    query = request.args.get('query', '')
+        return html
 
-    conn = db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute('SELECT email FROM logins WHERE email LIKE %s', ('%' + query + '%',))
-    suggestions = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    return jsonify(suggestions)
+    return render_template('friends.html')
 
 @app.route('/add_friend', methods=['POST'])
 def add_friend():
@@ -299,10 +266,11 @@ def feed():
     conn = db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Query to get pins from friends
+    # Query to get pins from friends, their names, and profile pictures
     cursor.execute("""
-        SELECT tips.lat, tips.lon, tips.tip, tips.email 
+        SELECT tips.lat, tips.lon, tips.tip, logins.name, logins.profile_pic
         FROM tips
+        JOIN logins ON tips.email = logins.email
         WHERE tips.email IN (
             SELECT 
                 CASE
@@ -318,8 +286,118 @@ def feed():
     cursor.close()
     conn.close()
 
-    # Render feed without city names
+    # Render feed with names and profile pictures
     return render_template('feed.html', pins=pins)
 
+
+
+@app.route('/profile', methods=['GET'])
+def profile():
+    if 'email' not in session:
+        return redirect(url_for('login'))  # Redirect to login if not authenticated
+    
+    email = session['email']
+    
+    conn = db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Fetch the current user's details
+    cursor.execute('SELECT name, profile_pic FROM logins WHERE email = %s', (email,))
+    user = cursor.fetchone()
+    
+    # Fetch the emails of the current user's friends
+    cursor.execute("""
+        SELECT 
+            CASE
+                WHEN email1 = %s THEN email2
+                ELSE email1
+            END AS friend_email
+        FROM friend_list
+        WHERE email1 = %s OR email2 = %s
+    """, (email, email, email))
+    
+    friend_emails = [row['friend_email'] for row in cursor.fetchall()]
+
+    # Fetch details of friends
+    friends = []
+    for friend_email in friend_emails:
+        cursor.execute('SELECT name, profile_pic FROM logins WHERE email = %s', (friend_email,))
+        friend = cursor.fetchone()
+        if friend:
+            friends.append({
+                'email': friend_email,
+                'name': friend['name'],
+                'profile_pic': friend['profile_pic']
+            })
+    
+    # Fetch user's tips
+    cursor.execute('SELECT lat, lon, tip FROM tips WHERE email = %s', (email,))
+    tips = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+
+    return render_template('profile.html', user=user, tips=tips, friends=friends)
+
+from flask import Flask, request, jsonify
+
+@app.route('/api/remove_tip', methods=['POST'])
+def remove_tip():
+    if 'email' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    lat = data.get('lat')
+    lon = data.get('lon')
+    tip = data.get('tip')
+    email = session['email']
+
+    if not (lat and lon and tip):
+        return jsonify({'success': False, 'message': 'Invalid data'}), 400
+
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('DELETE FROM tips WHERE lat = %s AND lon = %s AND tip = %s AND email = %s', 
+                       (lat, lon, tip, email))
+        conn.commit()
+        if cursor.rowcount > 0:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'message': 'Tip not found or already removed'})
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(err)})
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/update_profile_pic', methods=['POST'])
+def update_profile_pic():
+    if 'email' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    profile_pic = data.get('profile_pic')
+    email = session['email']
+
+    if not profile_pic:
+        return jsonify({'success': False, 'message': 'Invalid data'}), 400
+
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('UPDATE logins SET profile_pic = %s WHERE email = %s', (profile_pic, email))
+        conn.commit()
+        return jsonify({'success': True})
+    except mysql.connector.Error as err:
+        conn.rollback()
+        return jsonify({'success': False, 'message': str(err)})
+    finally:
+        cursor.close()
+        conn.close()
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True)

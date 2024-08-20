@@ -2,76 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Friends</title>
+    <title>Friends Search</title>
     <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
     <style>
         .container {
-            display: flex;
-            margin: 20px;
+            margin-top: 20px;
         }
-        .left, .right {
-            flex: 1;
-            padding: 20px;
+        .search-bar {
+            margin-bottom: 20px;
+            width: 100%; /* Full width of the container */
+            max-width: 1000px; /* Increase to a larger value */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
         }
-        .left {
-            border-right: 1px solid #ccc;
+        .search-bar input[type="text"] {
+            width: 100%; /* Ensure the input field itself takes full width of the container */
+            padding: 10px; /* Add padding for better appearance */
+            border: 1px solid #ccc; /* Border styling */
+            border-radius: 5px; /* Rounded corners */
         }
-        .autocomplete {
-            position: relative;
-            display: inline-block;
-        }
-        .autocomplete-items {
-            position: absolute;
-            border: 1px solid #d4d4d4;
-            border-bottom: none;
-            border-top: none;
-            z-index: 99;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background-color: white;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .autocomplete-item {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #d4d4d4;
-        }
-        .autocomplete-item:hover {
-            background-color: #e9e9e9;
+        .results {
+            width: 100%;
+            max-width: 1000px; /* Increase to match the search bar width */
+            margin-top: 20px;
         }
         .card {
             border: 1px solid #ccc;
             border-radius: 5px;
             padding: 15px;
             margin-bottom: 10px;
+            font-size: 12px;
+            text-align: center;
         }
-        .card h4 {
-            margin: 0;
-        }
-        .card button {
+        .add-friend {
             margin-top: 10px;
-            padding: 5px 10px;
-            background-color: #4CAF50;
-            color: white;
+            background-color: #4CAF50; /* Green */
             border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 12px;
             border-radius: 5px;
             cursor: pointer;
         }
-        .card button:hover {
-            background-color: #45a049;
+        .add-friend.added {
+            background-color: #ccc; /* Gray */
+            cursor: default;
         }
-        .remove-button {
-            background-color: #f44336; /* Red color for removal */
-        }
-        .remove-button:hover {
-            background-color: #e53935;
+        .navbar a.active {
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>Friends Page</h1>
+    <h1>Find Friends</h1>
 
     <div class="navbar">
         <a href="/home">Home</a>
@@ -79,129 +64,54 @@
         <a href="/feed">Feed</a>
         <a href="/profile">Profile</a>
     </div>
-
+    
     <div class="container">
-        <div class="left">
-            <h2>Search for Friends</h2>
-            <form id="searchForm">
-                <label for="search_email">Email:</label>
-                <div class="autocomplete">
-                    <input type="text" id="search_email" name="search_email" required autocomplete="off">
-                    <div id="autocomplete-list" class="autocomplete-items"></div>
-                </div>
-                <button type="submit">Search</button>
-            </form>
-            <div id="search_results">
-                <h3>Search Results</h3>
-                <div id="search_results_cards"></div>
-            </div>
-        </div>
-
-        <div class="right">
-            <h2>Your Friends</h2>
-            <ul id="friends_list">
-                {% if friends %}
-                    {% for friend in friends %}
-                        <li class="card">
-                            <h4>{{ friend.name }}</h4>
-                            <button class="remove-friend" data-email="{{ friend.email }}">Remove Friend</button>
-                        </li>
-                    {% endfor %}
-                {% else %}
-                    <li class="card">No friends found.</li>
-                {% endif %}
-            </ul>
+        <form id="search-form" method="POST" class="search-bar">
+            <input type="text" name="search_email" placeholder="Search for friends by email..." required>
+            <button type="submit">Search</button>
+        </form>
+        <div id="results" class="results">
+            <!-- Search results will be injected here -->
         </div>
     </div>
-
+    
     <script>
-        document.getElementById('search_email').addEventListener('input', function() {
-            var query = this.value;
-            if (query.length < 2) {
-                document.getElementById('autocomplete-list').innerHTML = '';
-                return;
-            }
-
-            fetch(`/search_suggestions?query=${query}`)
-                .then(response => response.json())
-                .then(data => {
-                    var list = document.getElementById('autocomplete-list');
-                    list.innerHTML = '';
-                    data.forEach(item => {
-                        var div = document.createElement('div');
-                        div.classList.add('autocomplete-item');
-                        div.textContent = item.email;
-                        div.addEventListener('click', function() {
-                            document.getElementById('search_email').value = item.email;
-                            list.innerHTML = '';
-                        });
-                        list.appendChild(div);
-                    });
-                });
-        });
-
-        document.getElementById('searchForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission behavior
-            var query = document.getElementById('search_email').value;
-
-            fetch('/search_friends', {
+        document.getElementById('search-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            fetch('/friends', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: new URLSearchParams('search_email=' + encodeURIComponent(query))
+                body: formData,
             })
             .then(response => response.text())
             .then(html => {
-                document.getElementById('search_results_cards').innerHTML = html;
+                document.getElementById('results').innerHTML = html;
             });
         });
 
-        // Add event listener to handle "Add Friend" button clicks
-        document.addEventListener('click', function(event) {
-            if (event.target && event.target.matches('button.add-friend')) {
-                var email = event.target.dataset.email;
-                
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('add-friend')) {
+                const friendEmail = e.target.dataset.email;
                 fetch('/add_friend', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    body: new URLSearchParams('friend_email=' + encodeURIComponent(email))
+                    body: new URLSearchParams({ 'friend_email': friendEmail })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert(data.message);
-                        event.target.textContent = 'Added';
-                        event.target.disabled = true;
+                        e.target.classList.add('added');
+                        e.target.textContent = 'Added';
                     } else {
-                        alert('Error: ' + data.message);
+                        alert('Failed to add friend: ' + data.message);
                     }
-                });
-            }
-        });
-
-        // Add event listener to handle "Remove Friend" button clicks
-        document.addEventListener('click', function(event) {
-            if (event.target && event.target.matches('button.remove-friend')) {
-                var email = event.target.dataset.email;
-                
-                fetch('/remove_friend', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams('friend_email=' + encodeURIComponent(email))
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        event.target.closest('.card').remove();
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while adding the friend.');
                 });
             }
         });

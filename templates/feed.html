@@ -12,10 +12,14 @@
             overflow-y: scroll;
             border: 1px solid #ccc;
             padding: 10px;
-            background-color: #f9f9f9;
+            background-color: #fff; /* Match the profile page background */
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
 
         .card {
+            display: flex;
+            align-items: flex-start;
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
@@ -29,15 +33,58 @@
             box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
         }
 
-        .card h4 {
-            margin: 0 0 10px;
+        .card img.profile-pic {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 15px;
+            background-color: #ddd; /* Placeholder color */
         }
 
-        .card p {
+        .card-content {
+            flex-grow: 1;
+        }
+
+        .card-content h4 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .card-content p {
             margin: 0;
             color: #555;
         }
     </style>
+    <script>
+        function reverseGeocode(lat, lon, element) {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.address && data.address.city) {
+                        element.innerText = `Location: ${data.address.city}`;
+                    } else {
+                        element.innerText = `Location: Latitude ${lat}, Longitude ${lon}`;
+                    }
+                })
+                .catch(error => {
+                    element.innerText = `Location: Latitude ${lat}, Longitude ${lon}`;
+                    console.error("Geocoding failed:", error);
+                });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const cards = document.querySelectorAll('.card-content p.location');
+            cards.forEach(card => {
+                const lat = card.dataset.lat;
+                const lon = card.dataset.lon;
+                reverseGeocode(lat, lon, card);
+            });
+        });
+    </script>
 </head>
 <body>
     <h1>Your Friends' Tips</h1>
@@ -52,10 +99,15 @@
     <div class="feed-container">
         {% for pin in pins %}
             <div class="card" onclick="window.location.href='/home?lat={{ pin.lat }}&lon={{ pin.lon }}'">
-                <h4>{{ pin.email }}</h4>
-                <p><strong>Tip:</strong> {{ pin.tip }}</p>
-                <p><strong>Latitude:</strong> {{ pin.lat }}</p>
-                <p><strong>Longitude:</strong> {{ pin.lon }}</p>
+                <img src="{{ pin.profile_pic if pin.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Profile Picture" class="profile-pic">
+                <div class="card-content">
+                    <h4><strong>{{ pin.name }}</strong> added a new Tip to the map:</h4>
+                    <p>{{ pin.tip }}</p>
+                    <p class="location" data-lat="{{ pin.lat }}" data-lon="{{ pin.lon }}">
+                        <!-- Location will be updated by JavaScript -->
+                        <strong>Location:</strong> Latitude {{ pin.lat }}, Longitude {{ pin.lon }}
+                    </p>
+                </div>
             </div>
         {% endfor %}
     </div>
