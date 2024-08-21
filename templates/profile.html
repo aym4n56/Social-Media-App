@@ -126,6 +126,7 @@
             {% for tip in tips %}
             <div class="tip-card" id="tip-{{ tip.lat }}-{{ tip.lon }}" data-lat="{{ tip.lat }}" data-lon="{{ tip.lon }}">
                 <button class="remove-tip" onclick="removeTip('{{ tip.lat }}', '{{ tip.lon }}', '{{ tip.tip|e }}')">X</button>
+                <p><strong>{{tip.tip_title}}</strong></p>
                 <p>{{ tip.tip }}</p>
                 <p class="location-info">Loading location...</p>
             </div>            

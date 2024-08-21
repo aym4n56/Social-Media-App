@@ -102,6 +102,7 @@
                 <img src="{{ pin.profile_pic if pin.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Profile Picture" class="profile-pic">
                 <div class="card-content">
                     <h4><strong>{{ pin.name }}</strong> added a new Tip to the map:</h4>
+                    <p><strong>{{ pin.tip_title }}</strong></p>
                     <p>{{ pin.tip }}</p>
                     <p class="location" data-lat="{{ pin.lat }}" data-lon="{{ pin.lon }}">
                         <!-- Location will be updated by JavaScript -->

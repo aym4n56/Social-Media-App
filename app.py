@@ -103,7 +103,7 @@ def get_pins():
     cursor = conn.cursor(dictionary=True)
     
     cursor.execute("""
-        SELECT tips.lat, tips.lon, tips.tip, tips.email 
+        SELECT tips.lat, tips.lon, tips.tip_title, tips.tip, tips.email 
         FROM tips
         WHERE tips.email = %s 
         OR tips.email IN (
@@ -123,6 +123,7 @@ def get_pins():
 
     return jsonify(pins)
 
+
 @app.route('/api/add_pin', methods=['POST'])
 def add_pin():
     if 'email' not in session:
@@ -131,18 +132,19 @@ def add_pin():
     data = request.json
     lat = data.get('lat')
     lon = data.get('lon')
+    tip_title = data.get('tip_title')  # New
     tip = data.get('tip')
     email = session['email']
 
-    if not (lat and lon and tip):
+    if not (lat and lon and tip and tip_title):
         return jsonify({'success': False, 'message': 'Invalid data'}), 400
 
     conn = db_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute('INSERT INTO tips (lat, lon, tip, email) VALUES (%s, %s, %s, %s)', 
-                       (lat, lon, tip, email))
+        cursor.execute('INSERT INTO tips (lat, lon, tip_title, tip, email) VALUES (%s, %s, %s, %s, %s)', 
+                       (lat, lon, tip_title, tip, email))
         conn.commit()
         return jsonify({'success': True})
     except mysql.connector.Error as err:
@@ -151,6 +153,7 @@ def add_pin():
     finally:
         cursor.close()
         conn.close()
+
 
 @app.route('/friends', methods=['GET', 'POST'])
 def friends():
@@ -268,7 +271,7 @@ def feed():
     
     # Query to get pins from friends, their names, and profile pictures
     cursor.execute("""
-        SELECT tips.lat, tips.lon, tips.tip, logins.name, logins.profile_pic
+        SELECT tips.lat, tips.lon, tips.tip, tips.tip_title, logins.name, logins.profile_pic
         FROM tips
         JOIN logins ON tips.email = logins.email
         WHERE tips.email IN (
@@ -301,11 +304,9 @@ def profile():
     conn = db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Fetch the current user's details
     cursor.execute('SELECT name, profile_pic FROM logins WHERE email = %s', (email,))
     user = cursor.fetchone()
     
-    # Fetch the emails of the current user's friends
     cursor.execute("""
         SELECT 
             CASE
@@ -318,7 +319,6 @@ def profile():
     
     friend_emails = [row['friend_email'] for row in cursor.fetchall()]
 
-    # Fetch details of friends
     friends = []
     for friend_email in friend_emails:
         cursor.execute('SELECT name, profile_pic FROM logins WHERE email = %s', (friend_email,))
@@ -330,16 +330,13 @@ def profile():
                 'profile_pic': friend['profile_pic']
             })
     
-    # Fetch user's tips
-    cursor.execute('SELECT lat, lon, tip FROM tips WHERE email = %s', (email,))
+    cursor.execute('SELECT lat, lon, tip_title, tip FROM tips WHERE email = %s', (email,))
     tips = cursor.fetchall()
     
     cursor.close()
     conn.close()
 
     return render_template('profile.html', user=user, tips=tips, friends=friends)
-
-from flask import Flask, request, jsonify
 
 @app.route('/api/remove_tip', methods=['POST'])
 def remove_tip():

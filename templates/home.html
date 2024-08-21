@@ -47,10 +47,13 @@
 
     <!-- Form to add a new tip -->
     <div id="tipForm">
+        <label for="tipTitle">Enter tip title:</label><br>
+        <input type="text" id="tipTitle" name="tipTitle" required><br>
         <label for="tip">Enter your tip:</label><br>
         <input type="text" id="tip" name="tip" required><br>
         <button onclick="submitTip()">Add Tip</button>
     </div>
+
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
@@ -83,7 +86,7 @@
 
                     L.marker([pin.lat, pin.lon], { icon: customIcon })
                         .addTo(map)
-                        .bindPopup(`<strong>${pin.tip}</strong><br>by ${pin.email}`);
+                        .bindPopup(`<strong>${pin.tip_title}</strong><br>${pin.tip}<br>by ${pin.email}`);
                 });
             })
             .catch(error => console.error('Error fetching pins:', error));
@@ -121,6 +124,7 @@
         });
 
         function submitTip() {
+            var tipTitle = document.getElementById('tipTitle').value;  // New
             var tip = document.getElementById('tip').value;
 
             fetch('/api/add_pin', {
@@ -128,7 +132,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ lat: lat, lon: lon, tip: tip })
+                body: JSON.stringify({ lat: lat, lon: lon, tip_title: tipTitle, tip: tip })  
             })
             .then(response => response.json())
             .then(data => {
