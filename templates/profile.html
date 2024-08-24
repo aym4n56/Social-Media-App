@@ -110,6 +110,7 @@
         <a href="/friends">Friends</a>
         <a href="/feed">Feed</a>
         <a href="/profile" class="active">Profile</a>
+        <a href="/messages">Chat</a>
     </div>
 
     <div class="container">
@@ -118,6 +119,7 @@
             <img src="{{ user.profile_pic if user.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Profile Picture" class="profile-pic" id="profile-pic">
             <div class="user-details">
                 <h2>{{ user.name }}</h2>
+                <p><strong>{{ user.tip_count }} Pins</strong></p>
             </div>
         </div>
 
@@ -227,18 +229,24 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Remove the friend card from the DOM
-                        document.querySelector(`.friend-card img[src$="${email}"]`).parentElement.remove();
+                        // Find the friend card using a more reliable selector
+                        const friendCard = document.querySelector(`.friend-card .friend-info h4:contains("${email}")`).parentElement.parentElement;
+                        if (friendCard) {
+                            friendCard.remove();
+                        } else {
+                            console.error('Friend card not found in the DOM.');
+                        }
                     } else {
                         alert('Failed to remove friend: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while trying to remove the friend.');
+                    alert('Friend Removed Succesfully');
                 });
             }
         }
+
 
         document.addEventListener("DOMContentLoaded", function() {
             const cards = document.querySelectorAll('.tip-card');

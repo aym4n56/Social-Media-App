@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat with {{ friend.name }}</title>
+    <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .chat-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .friend-pic {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 15px;
+        }
+        .messages {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 10px;
+        }
+        .message p {
+            margin: 0;
+        }
+        .message.sent p {
+            text-align: right;
+            color: #007bff;
+        }
+        .message.received p {
+            text-align: left;
+            color: #333;
+        }
+        .chat-input {
+            display: flex;
+            align-items: center;
+        }
+        .chat-input textarea {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <a href="/messages">Back</a>
+    </div>
+<div class="container">
+    <div class="chat-header">
+        <img src="{{ friend.profile_pic if friend.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Friend Picture" class="friend-pic">
+        <h2>{{ friend.name }}</h2>
+    </div>
+
+    <div class="messages">
+        {% for msg in messages %}
+        <div class="message {{ 'sent' if msg.sender_email == current_user_email else 'received' }}">
+            <p>{{ msg.content }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form action="/send_message" method="POST" class="chat-input">
+        <input type="hidden" name="receiver_email" value="{{ friend.email }}">
+        <textarea name="content" placeholder="Type a message..." required></textarea>
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+</body>
+</html>

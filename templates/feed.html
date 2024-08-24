@@ -56,6 +56,13 @@
             margin: 0;
             color: #555;
         }
+        .navbar a.active {
+            font-weight: bold;
+        }
+        .upvoted-button {
+            display: none;
+        }
+
     </style>
     <script>
         function reverseGeocode(lat, lon, element) {
@@ -94,6 +101,7 @@
         <a href="/friends">Friends</a>
         <a href="/feed" class="active">Feed</a>
         <a href="/profile">Profile</a>
+        <a href="/messages">Chat</a>
     </div>
     
     <div class="feed-container">

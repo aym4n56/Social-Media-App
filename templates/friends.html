@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Friends Search</title>
+    <title>Find Friends</title>
     <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
     <style>
         .container {
@@ -10,19 +10,19 @@
         }
         .search-bar {
             margin-bottom: 20px;
-            width: 100%; /* Full width of the container */
-            max-width: 1000px; /* Increase to a larger value */
-            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            width: 100%;
+            max-width: 1000px;
+            box-sizing: border-box;
         }
         .search-bar input[type="text"] {
-            width: 100%; /* Ensure the input field itself takes full width of the container */
-            padding: 10px; /* Add padding for better appearance */
-            border: 1px solid #ccc; /* Border styling */
-            border-radius: 5px; /* Rounded corners */
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
         .results {
             width: 100%;
-            max-width: 1000px; /* Increase to match the search bar width */
+            max-width: 1000px;
             margin-top: 20px;
         }
         .card {
@@ -30,25 +30,34 @@
             border-radius: 5px;
             padding: 15px;
             margin-bottom: 10px;
-            font-size: 12px;
+            font-size: 14px;
             text-align: center;
+            display: flex;
+            align-items: center;
         }
-        .add-friend {
+        .card img {
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .add-friend,
+        .added-friend {
             margin-top: 10px;
-            background-color: #4CAF50; /* Green */
             border: none;
             color: white;
-            padding: 10px 20px;
+            padding: 8px 16px;
             text-align: center;
             text-decoration: none;
             display: inline-block;
-            font-size: 12px;
+            font-size: 14px;
             border-radius: 5px;
             cursor: pointer;
         }
-        .add-friend.added {
+        .add-friend {
+            background-color: #4CAF50; /* Green */
+        }
+        .added-friend {
             background-color: #ccc; /* Gray */
-            cursor: default;
+            cursor: default; /* Non-clickable */
         }
         .navbar a.active {
             font-weight: bold;
@@ -63,6 +72,7 @@
         <a href="/friends" class="active">Friends</a>
         <a href="/feed">Feed</a>
         <a href="/profile">Profile</a>
+        <a href="/messages">Chat</a>
     </div>
     
     <div class="container">
@@ -71,7 +81,7 @@
             <button type="submit">Search</button>
         </form>
         <div id="results" class="results">
-            <!-- Search results will be injected here -->
+           
         </div>
     </div>
     
@@ -87,12 +97,18 @@
             .then(response => response.text())
             .then(html => {
                 document.getElementById('results').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = '<p>An error occurred while searching.</p>';
             });
         });
 
-        document.addEventListener('click', function(e) {
+        // Delegate click events for dynamically added buttons
+        document.getElementById('results').addEventListener('click', function(e) {
             if (e.target && e.target.classList.contains('add-friend')) {
-                const friendEmail = e.target.dataset.email;
+                const friendEmail = e.target.getAttribute('data-email');
+
                 fetch('/add_friend', {
                     method: 'POST',
                     headers: {
@@ -103,8 +119,11 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        e.target.classList.add('added');
+                        // Update the button to "Added" and disable it
+                        e.target.classList.remove('add-friend');
+                        e.target.classList.add('added-friend');
                         e.target.textContent = 'Added';
+                        e.target.disabled = true;
                     } else {
                         alert('Failed to add friend: ' + data.message);
                     }
