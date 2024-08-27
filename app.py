@@ -2,14 +2,14 @@ from flask import Flask, request, redirect, url_for, render_template, session, j
 import mysql.connector
 
 app = Flask(__name__)
-app.secret_key = 'ayman123'  # Change this to a random secret key
+app.secret_key = 'secret key'  # Change this to a random secret key
 
 # Connect to MySQL Database
 def db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password="ayman123",
+        password="secret key",
         database="pintip",
         port=3306
     )
