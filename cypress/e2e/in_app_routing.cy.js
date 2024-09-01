@@ -25,6 +25,9 @@ describe('Login and Route to pages', () => {
 
       cy.get('.navbar a').contains('Profile').click();
       cy.url().should('include', '/profile')
+
+      cy.get('.navbar a').contains('Chat').click();
+      cy.url().should('include', '/messages')
       
     })
   })
