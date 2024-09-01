@@ -16,7 +16,12 @@
         .chat-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             margin-bottom: 20px;
+        }
+        .friend-details {
+            display: flex;
+            align-items: center;
         }
         .friend-pic {
             width: 50px;
@@ -65,6 +70,15 @@
             font-size: 16px;
             cursor: pointer;
         }
+        .refresh-button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -72,26 +86,29 @@
     <div class="navbar">
         <a href="/messages">Back</a>
     </div>
-<div class="container">
-    <div class="chat-header">
-        <img src="{{ friend.profile_pic if friend.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Friend Picture" class="friend-pic">
-        <h2>{{ friend.name }}</h2>
-    </div>
-
-    <div class="messages">
-        {% for msg in messages %}
-        <div class="message {{ 'sent' if msg.sender_email == current_user_email else 'received' }}">
-            <p>{{ msg.content }}</p>
+    <div class="container">
+        <div class="chat-header">
+            <div class="friend-details">
+                <img src="{{ friend.profile_pic if friend.profile_pic else 'profile-pic-placeholder.jpg' }}" alt="Friend Picture" class="friend-pic">
+                <h2>{{ friend.name }}</h2>
+            </div>
+            <button class="refresh-button" onclick="location.reload()">Refresh</button>
         </div>
-        {% endfor %}
-    </div>
 
-    <form action="/send_message" method="POST" class="chat-input">
-        <input type="hidden" name="receiver_email" value="{{ friend.email }}">
-        <textarea name="content" placeholder="Type a message..." required></textarea>
-        <button type="submit">Send</button>
-    </form>
-</div>
+        <div class="messages">
+            {% for msg in messages %}
+            <div class="message {{ 'sent' if msg.sender_email == current_user_email else 'received' }}">
+                <p>{{ msg.content }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <form action="/send_message" method="POST" class="chat-input">
+            <input type="hidden" name="receiver_email" value="{{ friend.email }}">
+            <textarea name="content" placeholder="Type a message..." required></textarea>
+            <button type="submit">Send</button>
+        </form>
+    </div>
 
 </body>
 </html>

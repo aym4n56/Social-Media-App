@@ -161,12 +161,25 @@
         document.getElementById('profile-pic-input').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
+                const img = new Image();
                 const reader = new FileReader();
+
                 reader.onload = function(e) {
-                    const dataUrl = e.target.result;
+                    img.src = e.target.result;
+                };
+
+                img.onload = function() {
+                    // Check the image dimensions
+                    const maxWidth = 1280;
+                    const maxHeight = 720;
+
+                    if (img.width > maxWidth || img.height > maxHeight) {
+                        alert('The image exceeds the maximum allowed resolution of 1280x720 pixels.');
+                        return; // Stop processing the image
+                    }
 
                     // Update the profile picture in the DOM
-                    document.getElementById('profile-pic').src = dataUrl;
+                    document.getElementById('profile-pic').src = img.src;
 
                     // Send the data URL to the server to save it
                     fetch('/api/update_profile_pic', {
@@ -174,7 +187,7 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ profile_pic: dataUrl })
+                        body: JSON.stringify({ profile_pic: img.src })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -187,6 +200,7 @@
                         alert('An error occurred while updating the profile picture.');
                     });
                 };
+
                 reader.readAsDataURL(file);
             }
         });
@@ -229,7 +243,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Find the friend card using a more reliable selector
                         const friendCard = document.querySelector(`.friend-card .friend-info h4:contains("${email}")`).parentElement.parentElement;
                         if (friendCard) {
                             friendCard.remove();
@@ -242,11 +255,10 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Friend Removed Succesfully');
+                    alert('An error occurred while trying to remove the friend.');
                 });
             }
         }
-
 
         document.addEventListener("DOMContentLoaded", function() {
             const cards = document.querySelectorAll('.tip-card');

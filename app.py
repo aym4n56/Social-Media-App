@@ -1,16 +1,17 @@
 from flask import Flask, request, redirect, url_for, render_template, session, jsonify
 import mysql.connector
+import bcrypt
 
 app = Flask(__name__)
-app.secret_key = 'secret key'  # Change this to a random secret key
+app.secret_key = ''  
 
 # Connect to MySQL Database
 def db_connection():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="secret key",
-        database="pintip",
+        host="",
+        user="",
+        password="",
+        database="",
         port=3306
     )
 
@@ -26,20 +27,22 @@ def login():
 
         conn = db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM logins WHERE email = %s AND password = %s', 
-                       (email, password))
+        cursor.execute('SELECT * FROM logins WHERE email = %s', (email,))
         login = cursor.fetchone()
         cursor.close()
         conn.close()
 
         if login:
-            # Store user email in session
-            session['email'] = email
-            return redirect(url_for('home'))
-        else:
-            return redirect(url_for('login'))  # Redirect to login page on failure
+            stored_password = login[2]  # Assuming password is in the third column
+            if bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8')):
+                # Store user email in session
+                session['email'] = email
+                return redirect(url_for('home'))
+        
+        return redirect(url_for('login'))  # Redirect to login page on failure
     
     return render_template('login.html')
+
 
 @app.route('/home', methods=['GET'])
 def home():
@@ -66,7 +69,7 @@ def home():
     # Render the home page template with the user's name
     return render_template('home.html', user_name=user_name)
 
-@app.route('/signup', methods=['GET','POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         name = request.form.get('name')
@@ -77,10 +80,14 @@ def signup():
         if password != password_confirmation:
             return redirect(url_for('index'))  # Redirect back to signup page if passwords don't match
 
+        # Hash the password before storing it
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
         conn = db_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute('INSERT INTO logins (name, email, password) VALUES (%s, %s, %s)', (name, email, password))
+            cursor.execute('INSERT INTO logins (name, email, password) VALUES (%s, %s, %s)', 
+                           (name, email, hashed_password.decode('utf-8')))
             conn.commit()
         except mysql.connector.Error as err:
             conn.rollback()
@@ -527,7 +534,7 @@ def chat(friend_email):
     conn = db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Fetch chat room ID
+    # Fetch chat room ID or create a new one if it doesn't exist
     cursor.execute("""
         SELECT id 
         FROM chat_room 
@@ -538,9 +545,15 @@ def chat(friend_email):
     chat_room = cursor.fetchone()
 
     if not chat_room:
-        return "Chat room does not exist.", 404
-
-    chat_room_id = chat_room['id']
+        # Create a new chat room if it doesn't exist
+        cursor.execute("""
+            INSERT INTO chat_room (user1_email, user2_email)
+            VALUES (%s, %s)
+        """, (current_user_email, friend_email))
+        conn.commit()
+        chat_room_id = cursor.lastrowid
+    else:
+        chat_room_id = chat_room['id']
 
     # Fetch messages for the chat room
     cursor.execute("""
@@ -548,7 +561,6 @@ def chat(friend_email):
         WHERE chat_room_id = %s
         ORDER BY created_at ASC
     """, (chat_room_id,))
-
     messages = cursor.fetchall()
 
     # Fetch friend details
@@ -561,7 +573,6 @@ def chat(friend_email):
     conn.close()
 
     return render_template('chat.html', messages=messages, friend=friend, current_user_email=current_user_email)
-
 
 
 @app.route('/send_message', methods=['POST'])
